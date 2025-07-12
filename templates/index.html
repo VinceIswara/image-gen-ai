@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI Image Generator & Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 12px 16px;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            text-align: center;
+            color: #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover .file-upload-label {
+            border-color: #5a6fd8;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .btn {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 40px;
+        }
+
+        .results h3 {
+            margin-bottom: 20px;
+            color: #495057;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .image-item {
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .image-item:hover {
+            transform: translateY(-5px);
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-item img:hover {
+            opacity: 0.8;
+        }
+
+        .image-item .actions {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .btn-download {
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal.show {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: white;
+        }
+
+        .click-hint {
+            font-size: 0.8rem;
+            color: #6c757d;
+            text-align: center;
+            margin-top: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-item:hover .click-hint {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 AI Image Studio</h1>
+            <p>Generate and edit images with OpenAI's GPT-Image-1 model</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('generate')">🖼️ Generate</button>
+            <button class="tab" onclick="switchTab('edit')">✏️ Edit</button>
+        </div>
+
+        <!-- Generate Tab -->
+        <div id="generate" class="tab-content active">
+            <form id="generateForm">
+                <div class="form-group">
+                    <label for="generatePrompt">Describe the image you want to create:</label>
+                    <textarea 
+                        id="generatePrompt" 
+                        name="prompt" 
+                        class="form-control" 
+                        rows="3" 
+                        placeholder="A white siamese cat wearing VR goggles, cyberpunk style, high detail..."
+                        required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generateSize">Size:</label>
+                        <select id="generateSize" name="size" class="form-control">
+                            <option value="1024x1024">1024×1024 (Square)</option>
+                            <option value="1024x1536">1024×1536 (Portrait)</option>
+                            <option value="1536x1024">1536×1024 (Landscape)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="generateQuality">Quality:</label>
+                        <select id="generateQuality" name="quality" class="form-control">
+                            <option value="high">High (Best quality)</option>
+                            <option value="medium">Medium (Balanced)</option>
+                            <option value="low">Low (Fastest)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="generateCount">Number of images:</label>
+                        <select id="generateCount" name="n" class="form-control">
+                            <option value="1">1 image</option>
+                            <option value="2">2 images</option>
+                            <option value="3">3 images</option>
+                            <option value="4">4 images</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="generateBtn">🎨 Generate Images</button>
+            </form>
+
+            <div id="generateLoading" class="loading">
+                <div class="spinner"></div>
+                <p>Generating your images... This may take a few moments.</p>
+            </div>
+
+            <div id="generateResults" class="results"></div>
+        </div>
+
+        <!-- Edit Tab -->
+        <div id="edit" class="tab-content">
+            <form id="editForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="editPrompt">Describe how you want to edit the image:</label>
+                    <textarea 
+                        id="editPrompt" 
+                        name="prompt" 
+                        class="form-control" 
+                        rows="3" 
+                        placeholder="Make the cat wear a party hat, change the background to a beach scene..."
+                        required></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Image to edit:</label>
+                        <div class="file-upload">
+                            <input type="file" id="editImage" name="image" accept=".png,.jpg,.jpeg,.gif,.bmp,.webp,.heic" required>
+                            <label for="editImage" class="file-upload-label">
+                                📁 Choose image file...
+                            </label>
+                        </div>
+                        <div id="imageFileName" class="file-name"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Mask (optional):</label>
+                        <div class="file-upload">
+                            <input type="file" id="editMask" name="mask" accept=".png,.jpg,.jpeg">
+                            <label for="editMask" class="file-upload-label">
+                                🎭 Choose mask file...
+                            </label>
+                        </div>
+                        <div id="maskFileName" class="file-name"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editSize">Size:</label>
+                        <select id="editSize" name="size" class="form-control">
+                            <option value="1024x1024">1024×1024 (Square)</option>
+                            <option value="1024x1536">1024×1536 (Portrait)</option>
+                            <option value="1536x1024">1536×1024 (Landscape)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editQuality">Quality:</label>
+                        <select id="editQuality" name="quality" class="form-control">
+                            <option value="high">High (Best quality)</option>
+                            <option value="medium">Medium (Balanced)</option>
+                            <option value="low">Low (Fastest)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editCount">Number of variations:</label>
+                        <select id="editCount" name="n" class="form-control">
+                            <option value="1">1 image</option>
+                            <option value="2">2 images</option>
+                            <option value="3">3 images</option>
+                            <option value="4">4 images</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <!-- Empty div for grid alignment -->
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="editBtn">✏️ Edit Image</button>
+            </form>
+
+            <div id="editLoading" class="loading">
+                <div class="spinner"></div>
+                <p>Editing your image... This may take a few moments.</p>
+            </div>
+
+            <div id="editResults" class="results"></div>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <img id="modalImage" class="modal-image" src="" alt="Full size image">
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // File upload handlers
+        document.getElementById('editImage').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || '';
+            document.getElementById('imageFileName').textContent = fileName ? `Selected: ${fileName}` : '';
+        });
+
+        document.getElementById('editMask').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || '';
+            document.getElementById('maskFileName').textContent = fileName ? `Selected: ${fileName}` : '';
+        });
+
+        // Generate form handler
+        document.getElementById('generateForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                prompt: formData.get('prompt'),
+                size: formData.get('size'),
+                quality: formData.get('quality'),
+                n: formData.get('n')
+            };
+            
+            showLoading('generate');
+            hideResults('generate');
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResults('generate', result);
+                } else {
+                    showError('generate', result.error);
+                }
+            } catch (error) {
+                showError('generate', `Network error: ${error.message}`);
+            }
+            
+            hideLoading('generate');
+        });
+
+        // Edit form handler
+        document.getElementById('editForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            
+            showLoading('edit');
+            hideResults('edit');
+            
+            try {
+                const response = await fetch('/edit', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResults('edit', result);
+                } else {
+                    showError('edit', result.error);
+                }
+            } catch (error) {
+                showError('edit', `Network error: ${error.message}`);
+            }
+            
+            hideLoading('edit');
+        });
+
+        function showLoading(tab) {
+            document.getElementById(`${tab}Loading`).classList.add('show');
+            document.getElementById(`${tab}Btn`).disabled = true;
+        }
+
+        function hideLoading(tab) {
+            document.getElementById(`${tab}Loading`).classList.remove('show');
+            document.getElementById(`${tab}Btn`).disabled = false;
+        }
+
+        function showResults(tab, result) {
+            const resultsDiv = document.getElementById(`${tab}Results`);
+            
+            let html = `<h3>✅ ${result.images.length} image(s) created successfully!</h3>`;
+            html += '<div class="image-grid">';
+            
+            result.images.forEach((imageUrl, index) => {
+                const filename = imageUrl.split('/').pop();
+                html += `
+                    <div class="image-item">
+                        <img src="/preview/${filename}" alt="Generated image ${index + 1}" onclick="openModal('/preview/${filename}')">
+                        <div class="click-hint">Click to view full size</div>
+                        <div class="actions">
+                            <a href="${imageUrl}" class="btn-download" download>📥 Download</a>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        function showError(tab, error) {
+            const resultsDiv = document.getElementById(`${tab}Results`);
+            resultsDiv.innerHTML = `<div class="error">❌ Error: ${error}</div>`;
+        }
+
+        function hideResults(tab) {
+            document.getElementById(`${tab}Results`).innerHTML = '';
+        }
+
+        // Modal functions
+        function openModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modalImg.src = imageSrc;
+            modal.classList.add('show');
+            
+            // Close modal when clicking outside the image
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            };
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('show');
+        }
+    </script>
+</body>
+</html>
