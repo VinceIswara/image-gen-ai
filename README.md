@@ -23,6 +23,7 @@ A powerful tool for OpenAI image generation and editing with both **command-line
 ### 🎛️ **Supported Options**
 * **Resolutions**: `1024x1024`, `1024x1536`, `1536x1024`
 * **Quality tiers**: `high`, `medium`, `low` (+ `standard` for dall-e-2 editing)
+* **Input fidelity**: `high` (for editing - preserves faces, logos, and fine details)
 * **Moderation levels**: `low` (default) or `auto`
 * **Batch generation**: 1-10 images per request
 
@@ -98,6 +99,11 @@ python imagegen.py "Make the cat wear a party hat" --image input.png
 python imagegen.py "Add stars to the sky" --image input.png --mask mask.png --size 1024x1024 -n 1
 ```
 
+#### High Fidelity Image Editing
+```bash
+python imagegen.py "Change the background to a beach" --image portrait.png --input-fidelity high
+```
+
 ### CLI options
 
 | Flag / Option        | Description                                              |
@@ -107,6 +113,7 @@ python imagegen.py "Add stars to the sky" --image input.png --mask mask.png --si
 | `--mask`, `-m`       | Path to the mask file (PNG) for editing specific areas. Requires --image. Transparent areas in the mask indicate where the image should be edited. |
 | `--size`             | Resolution as `WIDTHxHEIGHT`; default `1024x1024`.       |
 | `--quality`          | `high` (default), `medium`, `low` — or `standard` **only when editing with `dall-e-2`** |
+| `--input-fidelity`   | `high` – preserves faces, logos, and fine details during editing. |
 | `--moderation`       | `low` (default here) or `auto` – content‑filtering strictness. |
 | `-n`, `--num`        | How many images to create (1‑10); default `1`.           |
 

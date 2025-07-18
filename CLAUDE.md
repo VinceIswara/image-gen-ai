@@ -43,6 +43,9 @@ python imagegen.py "Make the cat wear a party hat" --image input.png
 
 # Edit with mask
 python imagegen.py "Add stars to the sky" --image input.png --mask mask.png
+
+# Edit with high input fidelity (preserve faces, logos, details)
+python imagegen.py "Change the background to a beach" --image portrait.png --input-fidelity high
 ```
 
 ## Configuration
@@ -51,6 +54,7 @@ python imagegen.py "Add stars to the sky" --image input.png --mask mask.png
 - **Output**: Generated images saved as PNG files in the project root
 - **Supported Resolutions**: `1024x1024`, `1024x1536`, `1536x1024`
 - **Quality Options**: `high`, `medium`, `low` (for gpt-image-1), `standard` (for dall-e-2 editing only)
+- **Input Fidelity**: `high` (for editing - preserves faces, logos, and fine details)
 
 ## Architecture Notes
 

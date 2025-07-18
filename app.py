@@ -130,6 +130,7 @@ def edit_image():
         size = request.form.get('size', '1024x1024')
         quality = request.form.get('quality', 'high')
         n = int(request.form.get('n', 1))
+        input_fidelity = request.form.get('input_fidelity', None)
         
         if not prompt:
             return jsonify({'error': 'Prompt is required'}), 400
@@ -171,15 +172,22 @@ def edit_image():
             
             try:
                 # Edit image
-                response = client.images.edit(
-                    model="gpt-image-1",
-                    image=img_file,
-                    mask=mask_file_obj,
-                    prompt=prompt,
-                    n=n,
-                    size=size,
-                    quality=quality
-                )
+                edit_params = {
+                    "model": "gpt-image-1",
+                    "image": img_file,
+                    "prompt": prompt,
+                    "n": n,
+                    "size": size,
+                    "quality": quality
+                }
+                
+                # Add optional parameters
+                if mask_file_obj:
+                    edit_params["mask"] = mask_file_obj
+                if input_fidelity:
+                    edit_params["input_fidelity"] = input_fidelity
+                
+                response = client.images.edit(**edit_params)
                 
                 # Save edited images
                 image_urls = []
@@ -203,7 +211,8 @@ def edit_image():
                         'size': size,
                         'quality': quality,
                         'count': n,
-                        'had_mask': mask_filepath is not None
+                        'had_mask': mask_filepath is not None,
+                        'input_fidelity': input_fidelity
                     }
                 })
                 

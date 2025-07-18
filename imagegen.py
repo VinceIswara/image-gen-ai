@@ -27,6 +27,9 @@ python imagegen.py "Make the cat wear a party hat" --image input.png
 # Editing (Single Image with Mask): Edit 'input.png' in areas specified by 'mask.png'
 python imagegen.py "Add stars to the sky" --image input.png --mask mask.png --size 1024x1024 -n 1
 
+# Editing (High Fidelity): Edit with high fidelity to preserve faces, logos, and details
+python imagegen.py "Change the background to a beach" --image portrait.png --input-fidelity high
+
 # Editing (Multiple Reference Images): Generate based on prompt using multiple reference images
 # (Note: Mask is not supported in multi-image mode)
 python imagegen.py "Create a gift basket with these items" --image item1.png item2.png item3.png
@@ -101,7 +104,8 @@ def edit_image(
     size: str = "1024x1024",
     quality: str = "high", # Note: DALL-E 2 only supports 'standard'
     n: int = 1,
-    model: str = "gpt-image-1" # Can be "dall-e-2" as well for edits
+    model: str = "gpt-image-1", # Can be "dall-e-2" as well for edits
+    input_fidelity: str | None = None # New parameter for high-fidelity preservation
 ) -> list[bytes] | None:
     """
     Edit an image or generate based on reference images using OpenAI gpt-image-1 or dall-e-2.
@@ -169,6 +173,9 @@ def edit_image(
             # Conditionally add the mask parameter ONLY if an opened mask file exists
             if opened_mask_file:
                 api_params["mask"] = opened_mask_file
+            # Conditionally add input_fidelity parameter if specified
+            if input_fidelity:
+                api_params["input_fidelity"] = input_fidelity
 
             # Make the call using dictionary unpacking
             response = client.images.edit(**api_params)
@@ -246,6 +253,10 @@ def parse_args() -> argparse.Namespace:
         help="Content filtering level for generation/edit"
     )
     parser.add_argument(
+        "--input-fidelity", default=None, choices=["high"],
+        help="Input fidelity level for editing (high = preserve faces, logos, and details)"
+    )
+    parser.add_argument(
         "-n", "--num", type=int, default=1,
         help="Number of images to create (max 10)."
     )
@@ -288,7 +299,8 @@ def main() -> None:
             size=args.size,
             quality=args.quality, # Pass user choice, function handles model compatibility
             n=args.num,
-            model="gpt-image-1" # Hardcoded for now
+            model="gpt-image-1", # Hardcoded for now
+            input_fidelity=args.input_fidelity # Pass input fidelity parameter
         )
     else:
         # --- Generate Mode ---
