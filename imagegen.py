@@ -44,6 +44,7 @@ import re
 from openai import OpenAI, APIError, APIConnectionError, APIStatusError
 from contextlib import ExitStack # Needed for safely opening multiple files
 import sys # For stderr and exit
+from typing import List, Optional, Union # For type annotations
 
 # Initialize OpenAI client globally (uses OPENAI_API_KEY from environment)
 # Handle potential error if key is missing
@@ -60,8 +61,8 @@ def generate_image(
     size: str = "1024x1024",
     quality: str = "high",
     n: int = 1,
-    moderation: str = "low",
-) -> list[bytes] | None:
+    moderation: str = "low" # Default moderation level,
+) -> Optional[List[bytes]]:
     """
     Generate one or more images using OpenAI gpt-image-1.
 
@@ -77,6 +78,11 @@ def generate_image(
         )
         return None
 
+    # Validate number of images
+    if not 1 <= n <= 10:
+        print(f"Error: Number of images must be between 1 and 10, got {n}.", file=sys.stderr)
+        return None
+
     print(f"Generating image with model gpt-image-1...")
     try:
         response = client.images.generate(
@@ -85,12 +91,18 @@ def generate_image(
             size=size,
             quality=quality,
             n=n,
-            moderation=moderation, # Supported by gpt-image-1 generate
-            # response_format removed as it's not supported by gpt-image-1 generate
+            moderation=moderation,
+            response_format="b64_json",
         )
         print("Image generation complete.")
         return [base64.b64decode(d.b64_json) for d in response.data]
-    except (APIError, APIConnectionError, APIStatusError) as e:
+    except APIStatusError as e:
+        if e.status_code == 429:
+            print(f"\nRate limit exceeded. Please wait and try again later.", file=sys.stderr)
+        else:
+            print(f"\nAPI Status Error during image generation: {e}", file=sys.stderr)
+        return None
+    except (APIError, APIConnectionError) as e:
         print(f"\nError during image generation: {e}", file=sys.stderr)
         return None
     except Exception as e:
@@ -99,14 +111,14 @@ def generate_image(
 
 def edit_image(
     prompt: str,
-    image_paths: list[str], # Changed from image_path: str to list[str]
-    mask_path: str | None = None,
+    image_paths: List[str], # Changed from image_path: str to List[str]
+    mask_path: Optional[str] = None,
     size: str = "1024x1024",
     quality: str = "high", # Note: DALL-E 2 only supports 'standard'
     n: int = 1,
     model: str = "gpt-image-1", # Can be "dall-e-2" as well for edits
-    input_fidelity: str | None = None # New parameter for high-fidelity preservation
-) -> list[bytes] | None:
+    input_fidelity: Optional[str] = None # New parameter for high-fidelity preservation
+) -> Optional[List[bytes]]:
     """
     Edit an image or generate based on reference images using OpenAI gpt-image-1 or dall-e-2.
 
@@ -164,7 +176,7 @@ def edit_image(
             # --- Prepare Parameters and Make the API Call ---
             api_params = {
                 "model": model,
-                "image": opened_image_files, # Pass the list of opened file objects
+                "image": opened_image_files[0],  # single file (API spec)
                 "prompt": prompt,
                 "n": n,
                 "size": size,
@@ -173,8 +185,7 @@ def edit_image(
             # Conditionally add the mask parameter ONLY if an opened mask file exists
             if opened_mask_file:
                 api_params["mask"] = opened_mask_file
-            # Conditionally add input_fidelity parameter if specified
-            if input_fidelity:
+            if model == "gpt-image-1" and input_fidelity in ("low", "high"):
                 api_params["input_fidelity"] = input_fidelity
 
             # Make the call using dictionary unpacking
@@ -198,7 +209,13 @@ def edit_image(
     except FileNotFoundError as e:
         print(f"\nError: Input file not found - {e}", file=sys.stderr)
         return None
-    except (APIError, APIConnectionError, APIStatusError) as e:
+    except APIStatusError as e:
+        if e.status_code == 429:
+            print(f"\nRate limit exceeded. Please wait and try again later.", file=sys.stderr)
+        else:
+            print(f"\nAPI Status Error during image editing/generation: {e}", file=sys.stderr)
+        return None
+    except (APIError, APIConnectionError) as e:
         print(f"\nError during image editing/generation: {e}", file=sys.stderr)
         # You might want to check e.body for more specific error details from OpenAI
         if hasattr(e, 'body') and e.body:
@@ -243,17 +260,19 @@ def parse_args() -> argparse.Namespace:
              '- For dall-e-2 (edit only): "256x256", "512x512", "1024x1024"'
     )
     parser.add_argument(
-        "--quality", default="high", choices=["high", "medium", "low", "standard"], # Added 'standard'
+        "--quality", default="high", choices=["high", "medium", "low", "auto", "standard"], # Added 'auto'
         help="Generation/edit quality:\n"
-             "- 'high', 'medium', 'low' (gpt-image-1)\n"
+             "- 'high', 'medium', 'low', 'auto' (gpt-image-1)\n"
              "- 'standard' (dall-e-2 edit only)"
     )
     parser.add_argument(
-        "--moderation", default="low", choices=["auto", "low"],
-        help="Content filtering level for generation/edit"
+        "--moderation", default="low", choices=["low", "auto"],
+        help="Content filtering level for generation/edit:\n"
+             "- 'auto' (default): Balanced filtering\n"
+             "- 'low': Less strict content filtering"
     )
     parser.add_argument(
-        "--input-fidelity", default=None, choices=["high"],
+        "--input-fidelity", choices=["low", "high"],
         help="Input fidelity level for editing (high = preserve faces, logos, and details)"
     )
     parser.add_argument(
